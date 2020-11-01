@@ -1,0 +1,5 @@
+additional files
+avr
+*.pdsprj
+!curser.pdsprj
+attiny13-uart-master

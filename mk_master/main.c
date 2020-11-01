@@ -51,11 +51,12 @@ volatile uint8_t	t = 0x00;
 volatile uint8_t	command = 0x00;
 volatile uint8_t	temp = 0x00;
 
+uint8_t temp1;
+uint8_t temp2;
+
 ISR(PCINT0_vect) { 
+	//if ( ((PORTB & (1 << BT1)) == 0)  ((PORTB & (1 << BT2)) == 0) )
 	t = 0x01;
-	send_count = 2;
-	GIMSK &= ~(1 << 5); // Отключение прерывания
-	TIMSK0 |= (1 << OCIE0B);
 }
 
 ISR(TIM0_COMPB_vect) {
@@ -104,25 +105,33 @@ int main() {
 	while (1) {
 
 		sleep_mode(); // режим низкого потребления | power-down mode
-
 		if (t == 1) {
-			temp = PORTB;
-			PORTB &= ~(1 << 0);
-			temp = PORTB;
-			if ((PORTB & (1 << BT1)) & (PORTB & (1 << BT2))) {
-				send_count = 0;
-				TIMSK0 &= ~(1 << OCIE0B);
-				TIFR0 |= (1 << OCF0B);
-				GIMSK &= ~(1 << 5);
-			}
-			else {
-				if (PINB & (1 << BT1)) {//PORTB &= ~(1 << 3);
-					command = 0x00; // отправка сигнала налево | send left signal
+			temp1 = PORTB & (1 << BT1);
+			temp2 = PORTB & (1 << BT2); 
+			while (((PINB & (1<<BT1)) == 0) || ((PINB & (1<<BT2)) == 0)) {
+				send_count = 2;
+				GIMSK &= ~(1 << 5); // Отключение прерывания
+				TIMSK0 |= (1 << OCIE0B);
+				temp = PORTB;
+				PORTB &= ~(1 << 0);
+				temp = PORTB;
+				if ((PINB & (1<<BT1)) == 0 && (PINB & (1<<BT2)) == 0) {
+					send_count = 0;
+					TIMSK0 &= ~(1 << OCIE0B);
+					TIFR0 |= (1 << OCF0B);
+					GIMSK &= ~(1 << 5);
 				}
-				if (PINB & (1 << BT2)) {
-					command = 0x01; // отправка сигнала направо | send right signal
+				else {
+					if (PINB & (1 << BT1)) {//PORTB &= ~(1 << 3);
+						command = 0x00; // отправка сигнала налево | send left signal
+					}
+					if (PINB & (1 << BT2)) {
+						command = 0x01; // отправка сигнала направо | send right signal
+					}
+					send_command(); 
 				}
-				send_command(); 
+				temp1 = PORTB & (1 << BT1);
+				temp2 = PORTB & (1 << BT2);
 			}
 		t = 0; // end set to '0' t
 		}

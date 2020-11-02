@@ -5,6 +5,7 @@
 #include <avr/sleep.h>
 #include <util/delay.h>
 
+#define T_DIV 0x02
 
 /*
 stepper motor - st
@@ -33,51 +34,67 @@ Right				|______|	  						0
 
 /*
 TODO list 
-	- прерывание для приема данных с порта 0 возможно можно сделать прерывание которое будет запускать прерывания таймера, 
-в вечном цикле в основной подпрограмме проверять есть ли данные (сомнительный вариант)
+	- сделать если посылается череда команд
+	- 
 */
 
 
-volatile uint8_t recieve_count;
-volatile uint8_t recieve_ir;
+volatile uint8_t 	recieve_count;
+volatile uint8_t 	recieve_ir;
 volatile uint8_t	t = 0;
 
-ISR(INT0_vect) { 
-	t = 1;
-	recieve_count = 0x02;
-	GIMSK &= ~(1 << 5); // Отключение прерывания
-	TIMSK0 |= (1 << OCIE0B);
+uint8_t	temp = 0x00;
+
+ISR(PCINT0_vect) { 
+	if (PINB & 0x01) {
+		temp = PINB;
+		temp = PORTB;
+	}
+	else {
+		temp = PINB;
+		temp = PORTB;
+		t = 1;
+		GIMSK &= ~(1 << 5); // Отключение прерывания
+	}
 }
 
 ISR(TIM0_COMPB_vect) {
 	if(--recieve_count == 0) {
 		TIMSK0 &= ~(1 << OCIE0B);
 		TIFR0 |= (1 << OCF0B);
-		GIMSK &= ~(1 << 5);
+		recieve_ir = recieve_ir >> 1;
 	}
 	else {
-		recieve_ir = PORTB & 0x01;
+		temp = PINB & 0x01;
+		recieve_ir |= temp; // не получается передать информацию
+		recieve_ir = recieve_ir << 1;
 	}
 }
 
-int16_t recieve(uint8_t* b) {
+uint8_t recieve(uint8_t* b) {
 	while(recieve_count) {
-		*b = recieve_ir;
 	}
-	return 1;
+	*b = recieve_ir;
+	if (recieve_ir & 0x01) {
+		return 1;
+	} 
+	else {
+		return -1;
+	}
+
 }
 
 void init() {
-	recieve_count = 0x02;
+	recieve_count = 0x03;
 	recieve_ir = 0x00;
 
 	DDRB = 0x1E; // 0001 111E
 	PORTB = 0x0A; 
 
 	MCUCR = 0x30; 
-	MCUCR |= 0x03;//(1 << ISC01); // настрока преывния INT0
-	GIMSK |= 0x40; //(1 << INT0);//0x40;
-	//PCMSK = 0x01;
+	GIMSK = 0x20;
+	PCMSK = 0x01;
+	TCCR0B |= T_DIV;
 	sei();
 }
 
@@ -86,45 +103,50 @@ int main(void) {
 init();
  
 while (1) {
-	//sleep_mode();
+	sleep_mode();
 	if (t == 1) {
+		recieve_ir = 0x00;
+		recieve_count = 0x03;
+		TIMSK0 |= (1 << OCIE0B);
+		TIFR0 |= (1 << OCF0B);
 		uint8_t b;
 		if (recieve(&b) == 1) {
-			if (b) { // check left or right
-				switch(PORTB) { 	// left
+			temp = b;
+			if (b & 0x02) { // check left or right
+				switch(PORTB & 0b11110) { 	// left
 			    	case 0x0A: 	
-					PORTB=0x0C;	
-					break;  // 0x0C
-			    	 case 0x0C:  	
-					PORTB=0x14;	
-					break; // 0x14
-			    	 case 0x14: 	
-					PORTB=0x12;  
-					break; // 0x12
-			    	 case 0x12: 	
-					PORTB=0x0A;	
-					break; // 0x0A
+						PORTB=0x0C;	
+						break;  // 0x0C
+			    	case 0x0C:  	
+						PORTB=0x14;	
+						break; // 0x14
+			    	case 0x14: 	
+						PORTB=0x12;  
+						break; // 0x12
+			    	case 0x12: 	
+						PORTB=0x0A;	
+						break; // 0x0A
 			 	}
-			 	//_delay_ms(10); 
     		} 
 			else {
-				switch(PORTB) { 	// right
+				switch(PORTB & 0b11110) { 	// right
 			    	case 0x0A: 	
-					PORTB=0x12;	
-					break;  // 0x12
+						PORTB=0x12;	
+						break;  // 0x12
 			    	 case 0x0C:  	
-					PORTB=0x0A;	
-					break; // 0x14
+						PORTB=0x0A;	
+						break; // 0x14
 			    	 case 0x14: 	
-					PORTB=0x0C;  
-					break; // 0x12
+						PORTB=0x0C;  
+						break; // 0x12
 			    	 case 0x12: 	
-					PORTB=0x14;	
-					break; // 0x0A
+						PORTB=0x14;	
+						break; // 0x0A
 			 	}
-			 	//_delay_ms(10); 
 			}
 		}
+		t = 0;
+		GIMSK |= (1 << 5);
 	}		
 }
 

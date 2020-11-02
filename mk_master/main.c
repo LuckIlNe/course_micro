@@ -6,7 +6,7 @@
 #define BT1 1
 #define BT2 2
 //#define BAUD_DIV 0x7D
-#define T_DIV 0x05
+#define T_DIV 0x02
 
 
 /*

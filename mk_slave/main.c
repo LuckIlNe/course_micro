@@ -47,16 +47,16 @@ uint8_t	temp1 = 0x00;
 uint8_t	temp2 = 0x00;
 
 ISR(PCINT0_vect) { 
-	if (PINB & 0x01) {
-		temp = PINB;
-		temp = PORTB;
-	}
-	else {
+	//if (PINB & 0x01) {
+	//	temp = PINB;
+	//	temp = PORTB;
+	//}
+	//else {
 		temp = PINB;
 		temp = PORTB;
 		t = 1;
 		GIMSK &= ~(1 << 5); // Отключение прерывания
-	}
+	//}
 }
 
 ISR(TIM0_COMPB_vect) {
@@ -106,9 +106,16 @@ init();
 while (1) {
 	sleep_mode();
 	if (t == 1) {
-		//while (~(PORTB & 0x01)) {
+		while ((PINB & 0x01) == 0) {
 			recieve_ir = 0x00;
 			recieve_count = 0x03;
+			//if (TCNT0 < (T_DIV / 2)) {
+			//	OCR0B = TCNT0 + (T_DIV / 2);
+			//}
+			//else {
+			//	OCR0B = TCNT0 - (T_DIV / 2);
+			//}
+			
 			TIMSK0 |= (1 << OCIE0B);
 			TIFR0 |= (1 << OCF0B);
 			uint8_t b;
@@ -148,7 +155,7 @@ while (1) {
 							break; // 0x0A
 				 	}
 				}
-		//	}
+		}
 			recieve_ir = 0x00;
 			temp2 = PORTB;
 		}

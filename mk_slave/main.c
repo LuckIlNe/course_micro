@@ -1,11 +1,10 @@
-
 #include <inttypes.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include <util/delay.h>
 
-#define T_DIV 0x02
+#define T_DIV 0x05
 
 /*
 stepper motor - st
@@ -34,7 +33,7 @@ Right				|______|	  						0
 
 /*
 TODO list 
-	- сделать если посылается череда команд
+	- сделать если посылается очередь команд
 	- 
 */
 
@@ -44,6 +43,8 @@ volatile uint8_t 	recieve_ir;
 volatile uint8_t	t = 0;
 
 uint8_t	temp = 0x00;
+uint8_t	temp1 = 0x00;
+uint8_t	temp2 = 0x00;
 
 ISR(PCINT0_vect) { 
 	if (PINB & 0x01) {
@@ -65,7 +66,7 @@ ISR(TIM0_COMPB_vect) {
 		recieve_ir = recieve_ir >> 1;
 	}
 	else {
-		temp = PINB & 0x01;
+		temp = PINB & 0x01; //| PORTB & 0x01;
 		recieve_ir |= temp; // не получается передать информацию
 		recieve_ir = recieve_ir << 1;
 	}
@@ -75,7 +76,7 @@ uint8_t recieve(uint8_t* b) {
 	while(recieve_count) {
 	}
 	*b = recieve_ir;
-	if (recieve_ir & 0x01) {
+	if (*b & 0x01) {
 		return 1;
 	} 
 	else {
@@ -105,48 +106,56 @@ init();
 while (1) {
 	sleep_mode();
 	if (t == 1) {
-		recieve_ir = 0x00;
-		recieve_count = 0x03;
-		TIMSK0 |= (1 << OCIE0B);
-		TIFR0 |= (1 << OCF0B);
-		uint8_t b;
-		if (recieve(&b) == 1) {
-			temp = b;
-			if (b & 0x02) { // check left or right
-				switch(PORTB & 0b11110) { 	// left
-			    	case 0x0A: 	
-						PORTB=0x0C;	
-						break;  // 0x0C
-			    	case 0x0C:  	
-						PORTB=0x14;	
-						break; // 0x14
-			    	case 0x14: 	
-						PORTB=0x12;  
-						break; // 0x12
-			    	case 0x12: 	
-						PORTB=0x0A;	
-						break; // 0x0A
-			 	}
-    		} 
-			else {
-				switch(PORTB & 0b11110) { 	// right
-			    	case 0x0A: 	
-						PORTB=0x12;	
-						break;  // 0x12
-			    	 case 0x0C:  	
-						PORTB=0x0A;	
-						break; // 0x14
-			    	 case 0x14: 	
-						PORTB=0x0C;  
-						break; // 0x12
-			    	 case 0x12: 	
-						PORTB=0x14;	
-						break; // 0x0A
-			 	}
-			}
+		//while (~(PORTB & 0x01)) {
+			recieve_ir = 0x00;
+			recieve_count = 0x03;
+			TIMSK0 |= (1 << OCIE0B);
+			TIFR0 |= (1 << OCF0B);
+			uint8_t b;
+			uint8_t	temp1 = PORTB;
+			if (recieve(&b) == 1) {
+				temp = b;
+				uint8_t	temp1 = PORTB;
+				if ((b & 0b11) == 0b11) { // check left or right
+					switch(PORTB & 0x1E) { 	// left
+				    	case 0x0A: 	
+							PORTB =0x12;	
+							break;  // 0x12
+				    	 case 0x0C:  	
+							PORTB =0x0A;	
+							break; // 0x14
+				    	 case 0x14: 	
+							PORTB =0x0C;  
+							break; // 0x12
+				    	 case 0x12: 	
+							PORTB =0x14;	
+							break; // 0x0A
+				 	}
+    			} 
+				else {
+					switch(PORTB & 0x1E) { 	// right
+						case 0x0A: 	
+							PORTB =0x0C;	
+							break;  // 0x0C
+				    	case 0x0C:  	
+							PORTB =0x14;	
+							break; // 0x14
+				    	case 0x14: 	
+							PORTB =0x12;  
+							break; // 0x12
+				    	case 0x12: 	
+							PORTB =0x0A;	
+							break; // 0x0A
+				 	}
+				}
+		//	}
+			recieve_ir = 0x00;
+			temp2 = PORTB;
 		}
+		
 		t = 0;
 		GIMSK |= (1 << 5);
+
 	}		
 }
 

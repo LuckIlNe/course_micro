@@ -1,13 +1,11 @@
-#include <avr/io.h>
+﻿#include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/sleep.h>
 
 #define BT1 1
 #define BT2 2
-//#define BAUD_DIV 0x7D
-#define T_DIV 0x02
-
+#define T_DIV 0x05
 
 /*
  ____________________
@@ -25,11 +23,11 @@ PORTB = --00 0000
 
 SEND DATA
 			  wait  |first |data  |last  | wait
-			________			   ______.______ 	   	1
-LEFT				|______.___0__|						0
+			________			   ______.______	1
+LEFT				|______.___0__|					0
 
-			________	   .___1__.______.______		1
-Right				|______|	  						0
+			________	   .___1__.______.______	1
+Right				|______|	  					0
 
 */
 
@@ -37,7 +35,6 @@ Right				|______|	  						0
 /*
 TODO list 
 	 
-
 For me 
 	PORTB &= ~(1 << PBN); // PBN -> 0  
 	PORTB |= (1 << PBN); // PBN -> 1
@@ -103,7 +100,7 @@ int main() {
 			while (((PINB & (1<<BT1)) == 0) || ((PINB & (1<<BT2)) == 0)) {
 				if ((PINB & (1<<BT1)) == 0 && (PINB & (1<<BT2)) == 0) {
 				}
-				else {
+				else { 
 					send_count = 3;
 					TIMSK0 |= (1 << OCIE0B);
 					TIFR0 |= (1 << OCF0B);
